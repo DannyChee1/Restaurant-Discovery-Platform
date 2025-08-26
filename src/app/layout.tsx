@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Restaurant Picker - Find Your Next Meal",
+  title: "Rouleat - Find Your Next Meal",
   description: "Having trouble deciding where to eat? Let us help you discover amazing restaurants with smart filtering and random selection.",
 };
 

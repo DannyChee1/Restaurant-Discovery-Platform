@@ -4,9 +4,20 @@ import { useRouter } from "next/navigation";
 
 export default function Home() {
   const router = useRouter();
-
   return (
     <div className="relative w-screen h-screen overflow-hidden">
+      {/* Header */}
+      <div className="fixed top-0 left-0 right-0 h-20 bg-black/20 backdrop-blur-sm z-20">
+        <div className="flex items-center h-full px-8">
+          <button 
+            onClick={() => router.push('/')}
+            className="text-3xl font-bold text-white hover:text-gray-200 transition-colors duration-200 cursor-pointer"
+          >
+            Rouleat
+          </button>
+        </div>
+      </div>
+
       {/* Background video */}
       <video 
         autoPlay 
@@ -22,7 +33,7 @@ export default function Home() {
       <div className="absolute inset-0 bg-black/40 z-5"></div>
       
       {/* Content */}
-      <div className="relative z-10 flex flex-col justify-center h-screen ml-24">
+      <div className="relative z-10 flex flex-col justify-center h-screen ml-24 pt-20">
         <h1 className="text-6xl font-bold leading-none text-white mb-2 font-sans">
           Trouble deciding <br /> where to eat?
         </h1>
