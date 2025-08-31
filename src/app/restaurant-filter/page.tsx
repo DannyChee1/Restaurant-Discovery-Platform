@@ -1,6 +1,6 @@
 'use client'
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 export default function RestaurantFilter() {
     const router = useRouter();
@@ -181,14 +181,24 @@ export default function RestaurantFilter() {
             // Add a small delay to prevent too many requests
             await new Promise(resolve => setTimeout(resolve, 300));
 
-            // For demo purposes, we'll create mock predictions
-            // In a real app, you'd use Google Places API
-            const mockPredictions = [
-                { place_id: '1', description: `${text} - New York, NY` },
-                { place_id: '2', description: `${text} - Los Angeles, CA` },
-                { place_id: '3', description: `${text} - Chicago, IL` },
-            ];
-            setPredictions(mockPredictions);
+            const response = await fetch('/api/places/autocomplete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    input: text,
+                    sessionToken: sessionToken.current
+                    // For now, do without location bias. Potentially could get ip and use that to get location bias.
+                })
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch predictions');
+            }
+            const data = await response.json();
+            setPredictions(data.predictions || []);
+            
+
         } catch (error: any) {
             console.error('Error fetching predictions:', error);
             setPredictions([]);
@@ -221,14 +231,26 @@ export default function RestaurantFilter() {
         }
     };
 
-    // Add a function to handle search input changes with debounce
+    const debouncedSearch = useCallback(
+        (() => {
+            let timeoutId: NodeJS.Timeout;
+            return (text: string) => {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    if (text.trim().length > 2) {
+                        searchPlaces(text);
+                    } else {
+                        setPredictions([]);
+                    }
+                }, 300); // 300ms delay
+            };
+        })(),
+        [searchPlaces]
+    );
+
     const handleSearchChange = (text: string) => {
         setSearchQuery(text);
-        if (text.trim()) {
-            searchPlaces(text);
-        } else {
-            setPredictions([]);
-        }
+        debouncedSearch(text);
     };
 
     return (
