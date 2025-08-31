@@ -6,10 +6,14 @@ A full-stack web application that helps users discover and filter restaurants ba
 
 ---
 
-## Demo Video
+## Demo Videos
 
-<img src="docs/record.gif" alt="App Demo" width="250" />
-<img src="docs/front.gif" alt="Front Page" width="250" />
+<table>
+  <tr>
+    <td><img src="docs/record.gif" alt="App Demo" width="200" /></td>
+    <td><img src="docs/front.gif" alt="Front Page" width="550" /></td>
+  </tr>
+</table>
 
 
 ---
@@ -40,7 +44,7 @@ Restaurant Discovery Platform streamlines the restaurant discovery process:
 - **AI-Powered Summaries**: Google Places AI-generated restaurant summaries
 - **Social Media Integration**: YouTube and TikTok API integration for restaurant content
 - **Semantic Search**: pgvector integration for advanced review search and analysis
-- **Review Analysis**: LLM-powered "pros/cons" summarization using LangChain RAG tutorials
+- **Review Analysis**: LLM-powered "pros/cons" summarization using LangChain RAG
 - **User Accounts**: Authentication system for saving preferences and search history
 - **Database Integration**: PostgreSQL with pgvector for semantic search capabilities
 
