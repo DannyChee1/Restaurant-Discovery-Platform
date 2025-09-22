@@ -65,7 +65,11 @@ export default function WheelPage() {
     };
 
     const getStarRating = (rating: number) => {
-        return '★'.repeat(Math.floor(rating)) + '☆'.repeat(4 - Math.floor(rating));
+        // Ensure rating is a valid number
+        const validRating = isNaN(rating) ? 0 : Math.max(0, rating);
+        const filledStars = Math.max(0, Math.min(4, Math.floor(validRating)));
+        const emptyStars = Math.max(0, 4 - filledStars);
+        return '★'.repeat(filledStars) + '☆'.repeat(emptyStars);
     };
 
     if (isLoading) {
