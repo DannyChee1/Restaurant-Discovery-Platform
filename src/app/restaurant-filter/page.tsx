@@ -116,8 +116,8 @@ export default function RestaurantFilter() {
                 setSearchQuery('');
                 setPredictions([]);
             } 
-            catch (error: any) {
-                const errorMessage = error.message || 'Could not get location';
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Could not get location';
                 setLocationError(errorMessage);
                 setUseCurrentLocation(false);
                 console.error('Location error:', error);
