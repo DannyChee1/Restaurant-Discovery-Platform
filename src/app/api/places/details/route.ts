@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
             rating: place.rating || 0,
             user_ratings_total: place.user_ratings_total || 0,
             price_level: place.price_level || 0,
-            photos: place.photos?.map((photo: any) => ({
+            photos: place.photos?.map((photo: { photo_reference: string; height: number; width: number; html_attributions: string[] }) => ({
                 photo_reference: photo.photo_reference,
                 height: photo.height,
                 width: photo.width,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
                 open_now: place.opening_hours.open_now,
                 weekday_text: place.opening_hours.weekday_text || []
             } : null,
-            reviews: place.reviews?.map((review: any) => ({
+            reviews: place.reviews?.map((review: { author_name: string; rating: number; text: string; time: number; relative_time_description: string }) => ({
                 author_name: review.author_name,
                 rating: review.rating,
                 text: review.text,

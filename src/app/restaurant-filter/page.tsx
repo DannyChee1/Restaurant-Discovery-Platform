@@ -5,18 +5,18 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 export default function RestaurantFilter() {
     const router = useRouter();
     const [useCurrentLocation, setUseCurrentLocation] = useState(false);
-    const [location, setLocation] = useState<any>(null);
+    const [location, setLocation] = useState<{ coords: { latitude: number; longitude: number; altitude: number | null; accuracy: number | null; altitudeAccuracy: number | null; heading: number | null; speed: number | null }; timestamp: number } | null>(null);
     const [locationError, setLocationError] = useState<string | null>(null);
     const [distance, setDistance] = useState(5); // in km (float)
     const [selectedBudget, setSelectedBudget] = useState(1); // Google's 1-4 (no free)
     const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
     const [selectedRestrictions, setSelectedRestrictions] = useState<string[]>([]);
-    const [isBackButtonPressed, setIsBackButtonPressed] = useState(false);
+    // const [isBackButtonPressed, setIsBackButtonPressed] = useState(false);
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [address, setAddress] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [predictions, setPredictions] = useState<any[]>([]);
+    const [predictions, setPredictions] = useState<{ place_id: string; description: string }[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [rating, setRating] = useState(0); // Google's 0-4
     const [restaurantCount, setRestaurantCount] = useState(0);
@@ -102,7 +102,7 @@ export default function RestaurantFilter() {
             }
 
         } catch (error) {
-            console.warn("Error fetching address");
+            console.warn("Error fetching address:", error);
         }
     };
 
@@ -131,7 +131,7 @@ export default function RestaurantFilter() {
         }
     };
 
-    const getCurrentPosition = (): Promise<any> => {
+    const getCurrentPosition = (): Promise<{ coords: { latitude: number; longitude: number; altitude: number | null; accuracy: number | null; altitudeAccuracy: number | null; heading: number | null; speed: number | null }; timestamp: number }> => {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
                 reject(new Error('Geolocation not supported'));
@@ -179,12 +179,12 @@ export default function RestaurantFilter() {
         });
     };
 
-    const handleSearchPress = () => {
-        setSearchQuery('');
-        setUseCurrentLocation(false);
-        setLocation(null);
-        setLocationError(null);
-    };
+    // const handleSearchPress = () => {
+    //     setSearchQuery('');
+    //     setUseCurrentLocation(false);
+    //     setLocation(null);
+    //     setLocationError(null);
+    // };
 
     // Generate a new session token
     const generateSessionToken = () => {
@@ -272,7 +272,7 @@ export default function RestaurantFilter() {
         }
     };
 
-    const handlePlaceSelect = async (place: any) => {
+    const handlePlaceSelect = async (place: { place_id: string; description: string }) => {
         try {
             setAddress(place.description);
             
@@ -308,7 +308,7 @@ export default function RestaurantFilter() {
         }
     };
 
-    const getPlaceDetails = async (placeId: string) => {
+    const getPlaceDetails = async (placeId: string): Promise<{ geometry: { location: { lat: number; lng: number } } } | null> => {
         try {
             // console.log('Fetching place details for:', placeId);
             const response = await fetch('/api/places/details', {
@@ -335,19 +335,16 @@ export default function RestaurantFilter() {
     };
 
     const debouncedSearch = useCallback(
-        (() => {
-            let timeoutId: NodeJS.Timeout;
-            return (text: string) => {
-                clearTimeout(timeoutId);
-                timeoutId = setTimeout(() => {
-                    if (text.trim().length > 2) {
-                        searchPlaces(text);
-                    } else {
-                        setPredictions([]);
-                    }
-                }, 300); // 300ms delay
-            };
-        })(),
+        (text: string) => {
+            const timeoutId = setTimeout(() => {
+                if (text.trim().length > 2) {
+                    searchPlaces(text);
+                } else {
+                    setPredictions([]);
+                }
+            }, 300); // 300ms delay
+            return () => clearTimeout(timeoutId);
+        },
         [searchPlaces]
     );
 
@@ -618,7 +615,7 @@ export default function RestaurantFilter() {
                         </p>
                     ) : (
                         <p className="text-lg text-black text-center font-semibold">
-                            Click "Search & Go to Wheel" to find restaurants
+                            Click &quot;Search & Go to Wheel&quot; to find restaurants
                         </p>
                     )}
                 </div>

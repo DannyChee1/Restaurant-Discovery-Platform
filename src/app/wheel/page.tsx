@@ -14,7 +14,7 @@ interface Restaurant {
             lng: number;
         };
     };
-    photos: any[];
+    photos: { photo_reference: string; height: number; width: number; html_attributions: string[] }[];
     types: string[];
     user_ratings_total: number;
     business_status: string;

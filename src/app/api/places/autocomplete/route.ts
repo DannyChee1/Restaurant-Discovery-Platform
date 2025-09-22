@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
         const data = await response.json();
         
-        const predictions = data.suggestions?.map((suggestion: any) => {
+        const predictions = data.suggestions?.map((suggestion: { placePrediction?: { placeId: string; text: { text: string } } }) => {
             if (suggestion.placePrediction) {
                 return {
                     place_id: suggestion.placePrediction.placeId,

@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
                 'Vegetarian': 'vegetarian_restaurant'
             };
             
-            const placeTypes = cuisine.map((c: string) => cuisineMap[c] || c.toLowerCase().replace(/\s+/g, '_') + '_restaurant');
+            // const placeTypes = cuisine.map((c: string) => cuisineMap[c] || c.toLowerCase().replace(/\s+/g, '_') + '_restaurant');
             const cuisineKeywords = cuisine.join(' OR ');
             params.append('keyword', cuisineKeywords);
         }
@@ -96,12 +96,12 @@ export async function POST(request: NextRequest) {
         let restaurants = data.results || [];
         
         if (minRating) {
-            restaurants = restaurants.filter((restaurant: any) => 
+            restaurants = restaurants.filter((restaurant: { rating?: number }) => 
                 restaurant.rating && restaurant.rating >= minRating
             );
         }
 
-        const formattedRestaurants = restaurants.map((restaurant: any) => ({
+        const formattedRestaurants = restaurants.map((restaurant: { place_id: string; name: string; rating?: number; price_level?: number; vicinity: string; geometry: any; photos?: any[]; types?: string[]; user_ratings_total?: number; business_status?: string }) => ({
             place_id: restaurant.place_id,
             name: restaurant.name,
             rating: restaurant.rating || 0,
