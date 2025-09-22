@@ -30,36 +30,7 @@ export async function POST(request: NextRequest) {
 
         // Add cuisine filter using Google's place types
         if (cuisine && cuisine.length > 0 && !cuisine.includes('All')) {
-            // Map cuisines to Google's place types
-            const cuisineMap: { [key: string]: string } = {
-                'American': 'american_restaurant',
-                'Chinese': 'chinese_restaurant',
-                'Japanese': 'japanese_restaurant',
-                'Korean': 'korean_restaurant',
-                'Vietnamese': 'vietnamese_restaurant',
-                'Thai': 'thai_restaurant',
-                'Indian': 'indian_restaurant',
-                'Turkish': 'turkish_restaurant',
-                'Lebanese': 'lebanese_restaurant',
-                'Greek': 'greek_restaurant',
-                'Italian': 'italian_restaurant',
-                'Spanish': 'spanish_restaurant',
-                'French': 'french_restaurant',
-                'Mexican': 'mexican_restaurant',
-                'Brazilian': 'brazilian_restaurant',
-                'German': 'german_restaurant',
-                'African': 'african_restaurant',
-                'Mediterranean': 'mediterranean_restaurant',
-                'Middle Eastern': 'middle_eastern_restaurant',
-                'Pizza': 'pizza_restaurant',
-                'Seafood': 'seafood_restaurant',
-                'Steak House': 'steak_house',
-                'Sushi': 'sushi_restaurant',
-                'Vegan': 'vegan_restaurant',
-                'Vegetarian': 'vegetarian_restaurant'
-            };
-            
-            // const placeTypes = cuisine.map((c: string) => cuisineMap[c] || c.toLowerCase().replace(/\s+/g, '_') + '_restaurant');
+            // Use keyword search for multiple cuisines
             const cuisineKeywords = cuisine.join(' OR ');
             params.append('keyword', cuisineKeywords);
         }
@@ -101,7 +72,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const formattedRestaurants = restaurants.map((restaurant: { place_id: string; name: string; rating?: number; price_level?: number; vicinity: string; geometry: any; photos?: any[]; types?: string[]; user_ratings_total?: number; business_status?: string }) => ({
+        const formattedRestaurants = restaurants.map((restaurant: { place_id: string; name: string; rating?: number; price_level?: number; vicinity: string; geometry: { location: { lat: number; lng: number } }; photos?: { photo_reference: string; height: number; width: number; html_attributions: string[] }[]; types?: string[]; user_ratings_total?: number; business_status?: string }) => ({
             place_id: restaurant.place_id,
             name: restaurant.name,
             rating: restaurant.rating || 0,

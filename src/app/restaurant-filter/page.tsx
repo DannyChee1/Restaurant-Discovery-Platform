@@ -95,8 +95,8 @@ export default function RestaurantFilter() {
     const reverseGeocode = async (latitude: number, longitude: number) => {
         try {
             const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            const data = await response.json();
-            if (data && data.address) {
+            const data: { address?: { display_name: string }; display_name?: string } = await response.json();
+            if (data && data.display_name) {
                 setAddress(data.display_name);
                 return;
             }
@@ -238,7 +238,7 @@ export default function RestaurantFilter() {
         }
     }, [useCurrentLocation, location, address, distance, selectedBudget, selectedCuisines, selectedRestrictions, rating, isLoadingFilters]);
 
-    const searchPlaces = async (text: string) => {
+    const searchPlaces = useCallback(async (text: string) => {
         if (!text.trim()) {
             setPredictions([]);
             return;
@@ -266,11 +266,11 @@ export default function RestaurantFilter() {
             setPredictions(data.predictions || []);
             
 
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error fetching predictions:', error);
             setPredictions([]);
         }
-    };
+    }, []);
 
     const handlePlaceSelect = async (place: { place_id: string; description: string }) => {
         try {
