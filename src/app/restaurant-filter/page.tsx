@@ -8,19 +8,23 @@ export default function RestaurantFilter() {
     const [location, setLocation] = useState<any>(null);
     const [locationError, setLocationError] = useState<string | null>(null);
     const [distance, setDistance] = useState(5); // in km (float)
-    const [selectedBudget, setSelectedBudget] = useState(1);
+    const [selectedBudget, setSelectedBudget] = useState(1); // Google's 1-4 (no free)
     const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
     const [selectedRestrictions, setSelectedRestrictions] = useState<string[]>([]);
     const [isBackButtonPressed, setIsBackButtonPressed] = useState(false);
     const [showError, setShowError] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
     const [address, setAddress] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [predictions, setPredictions] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
-    const [rating, setRating] = useState(3); // Default rating of 3
+    const [rating, setRating] = useState(0); // Google's 0-4
+    const [restaurantCount, setRestaurantCount] = useState(0);
+    const [isSearchingRestaurants, setIsSearchingRestaurants] = useState(false);
+    const [isLoadingFilters, setIsLoadingFilters] = useState(true);
     const sessionToken = useRef<string | null>(null);
 
-    const cuisines = ['All', 'Chinese', 'Japanese', 'Korean', 'Vietnamese', 'Thai', 'Indian', 'Turkish', 'Lebanese', 'Israeli', 'Greek', 'Italian', 'Spanish', 'Portuguese', 'French', 'Mexican', 'Peruvian', 'Brazilian', 'Argentinian', 'Caribbean', 'German', 'Russian', 'African'];
+    const cuisines = ['All', 'American', 'Chinese', 'Japanese', 'Korean', 'Vietnamese', 'Thai', 'Indian', 'Turkish', 'Lebanese', 'Greek', 'Italian', 'Spanish', 'French', 'Mexican', 'Brazilian', 'German', 'African', 'Mediterranean', 'Middle Eastern', 'Pizza', 'Seafood', 'Steak House', 'Sushi', 'Vegan', 'Vegetarian'];
 
     const dietaryRestrictions = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 'Halal', 'Kosher', 'Pescatarian'];
 
@@ -56,12 +60,35 @@ export default function RestaurantFilter() {
         }
     };
 
-    const handleGoToWheel = () => {
+    const handleSearchAndGoToWheel = async () => {
         if (selectedCuisines.length === 0) {
+            setErrorMessage('Please select at least one cuisine');
             setShowError(true);
             return;
         }
+        
+        // console.log('Location state:', location);
+        if (!location || !location.coords) {
+            setErrorMessage('Please select a location');
+            setShowError(true);
+            return;
+        }
+        
         setShowError(false);
+        
+        const restaurants = await searchRestaurants();
+        
+        // Store restaurants in localStorage and navigate to wheel
+        if (restaurants && restaurants.length > 0) {
+            // Store in localStorage with a timestamp to avoid conflicts
+            const restaurantData = {
+                restaurants: restaurants,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('restaurantData', JSON.stringify(restaurantData));
+        }
+        
+        // Navigate to wheel page
         router.push('/wheel');
     };
 
@@ -171,6 +198,46 @@ export default function RestaurantFilter() {
         generateSessionToken();
     }, []);
 
+    // Load saved filters from localStorage
+    useEffect(() => {
+        const savedFilters = localStorage.getItem('restaurantFilters');
+        if (savedFilters) {
+            try {
+                const filters = JSON.parse(savedFilters);
+                
+                // Set all filters at once to avoid timing issues
+                if (filters.useCurrentLocation !== undefined) setUseCurrentLocation(filters.useCurrentLocation);
+                if (filters.location !== undefined) setLocation(filters.location);
+                if (filters.address !== undefined) setAddress(filters.address);
+                if (filters.distance !== undefined) setDistance(filters.distance);
+                if (filters.selectedBudget !== undefined) setSelectedBudget(filters.selectedBudget);
+                if (filters.selectedCuisines !== undefined) setSelectedCuisines(filters.selectedCuisines);
+                if (filters.selectedRestrictions !== undefined) setSelectedRestrictions(filters.selectedRestrictions);
+                if (filters.rating !== undefined) setRating(filters.rating);
+            } catch (error) {
+                console.error('Error loading saved filters:', error);
+            }
+        }
+        setIsLoadingFilters(false);
+    }, []);
+
+    // Save filters to localStorage whenever they change (but not when loading)
+    useEffect(() => {
+        if (!isLoadingFilters) {
+            const filters = {
+                useCurrentLocation,
+                location,
+                address,
+                distance,
+                selectedBudget,
+                selectedCuisines,
+                selectedRestrictions,
+                rating
+            };
+            localStorage.setItem('restaurantFilters', JSON.stringify(filters));
+        }
+    }, [useCurrentLocation, location, address, distance, selectedBudget, selectedCuisines, selectedRestrictions, rating, isLoadingFilters]);
+
     const searchPlaces = async (text: string) => {
         if (!text.trim()) {
             setPredictions([]);
@@ -208,18 +275,28 @@ export default function RestaurantFilter() {
     const handlePlaceSelect = async (place: any) => {
         try {
             setAddress(place.description);
-            setLocation({
-                coords: {
-                    latitude: 40.7128,
-                    longitude: -74.0060,
-                    altitude: null,
-                    accuracy: null,
-                    altitudeAccuracy: null,
-                    heading: null,
-                    speed: null,
-                },
-                timestamp: Date.now()
-            });
+            
+            const placeDetails = await getPlaceDetails(place.place_id);
+            // console.log('Place details:', placeDetails);
+            if (placeDetails && placeDetails.geometry) {
+                const newLocation = {
+                    coords: {
+                        latitude: placeDetails.geometry.location.lat,
+                        longitude: placeDetails.geometry.location.lng,
+                        altitude: null,
+                        accuracy: null,
+                        altitudeAccuracy: null,
+                        heading: null,
+                        speed: null,
+                    },
+                    timestamp: Date.now()
+                };
+                // console.log('Setting location:', newLocation);
+                setLocation(newLocation);
+            } else {
+                console.error('No geometry found in place details');
+            }
+            
             setSearchQuery('');
             setPredictions([]);
             setIsSearching(false);
@@ -228,6 +305,32 @@ export default function RestaurantFilter() {
             generateSessionToken();
         } catch (error) {
             console.error('Error setting location:', error);
+        }
+    };
+
+    const getPlaceDetails = async (placeId: string) => {
+        try {
+            // console.log('Fetching place details for:', placeId);
+            const response = await fetch('/api/places/details', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    placeId: placeId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch place details');
+            }
+
+            const data = await response.json();
+            // console.log('Place details received:', data.place);
+            return data.place;
+        } catch (error) {
+            console.error('Error fetching place details:', error);
+            return null;
         }
     };
 
@@ -253,6 +356,69 @@ export default function RestaurantFilter() {
         debouncedSearch(text);
     };
 
+    const clearFilters = () => {
+        setUseCurrentLocation(false);
+        setLocation(null);
+        setAddress(null);
+        setDistance(5);
+        setSelectedBudget(1);
+        setSelectedCuisines([]);
+        setSelectedRestrictions([]);
+        setRating(0);
+        setSearchQuery('');
+        setPredictions([]);
+        setRestaurantCount(0);
+        setShowError(false);
+        setErrorMessage('');
+        localStorage.removeItem('restaurantFilters');
+    };
+
+    const searchRestaurants = async () => {
+        if (!location || !location.coords) {
+            setRestaurantCount(0);
+            return;
+        }
+
+        setIsSearchingRestaurants(true);
+        try {
+            const response = await fetch('/api/places/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    location: {
+                        lat: location.coords.latitude,
+                        lng: location.coords.longitude
+                    },
+                    radius: distance,
+                    cuisine: selectedCuisines.length > 0 ? selectedCuisines : null,
+                    priceLevel: selectedBudget,
+                    minRating: rating,
+                    dietaryRestrictions: selectedRestrictions.length > 0 ? selectedRestrictions : null
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch restaurants');
+            }
+
+            const data = await response.json();
+            setRestaurantCount(data.total_results || 0);
+            
+            if (data.restaurants && data.restaurants.length > 0) {
+                return data.restaurants;
+            }
+            return [];
+        } catch (error) {
+            console.error('Error searching restaurants:', error);
+            setRestaurantCount(0);
+            return [];
+        } finally {
+            setIsSearchingRestaurants(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#fefefe] overflow-y-auto">
             {/* Header */}
@@ -269,7 +435,15 @@ export default function RestaurantFilter() {
 
             {/* Main Content */}
             <div className="pt-45 px-5 pb-32 overflow-y-auto">
-                <h1 className="text-3xl font-bold mt-8 mb-8 text-black">Filters</h1>
+                <div className="flex justify-between items-center mt-8 mb-8">
+                    <h1 className="text-3xl font-bold text-black">Filters</h1>
+                    <button 
+                        onClick={clearFilters}
+                        className="text-sm text-gray-600 hover:text-black transition-colors duration-200 underline"
+                    >
+                        Clear All Filters
+                    </button>
+                </div>
 
                 {/* Location Section */}
                 <div className="mb-8">
@@ -344,8 +518,8 @@ export default function RestaurantFilter() {
                     <div className="px-2.5">
                         <input
                             type="range"
-                            min="1"
-                            max="5"
+                            min="0"
+                            max="4"
                             step="0.5"
                             value={rating}
                             onChange={(e) => setRating(parseFloat(e.target.value))}
@@ -366,7 +540,7 @@ export default function RestaurantFilter() {
                             onClick={() => setSelectedBudget(1)}
                         >
                             <span className={`block text-xl font-bold ${selectedBudget === 1 ? 'text-white' : 'text-black'}`}>$</span>
-                            <span className={`block text-xs mt-1 ${selectedBudget === 1 ? 'text-white' : 'text-[#666]'}`}>Under $10</span>
+                            <span className={`block text-xs mt-1 ${selectedBudget === 1 ? 'text-white' : 'text-[#666]'}`}>Inexpensive</span>
                         </button>
                         <button
                             className={`flex-1 p-4 rounded-lg border border-[#e0e0e0] text-center transition-colors duration-200 ${
@@ -375,7 +549,7 @@ export default function RestaurantFilter() {
                             onClick={() => setSelectedBudget(2)}
                         >
                             <span className={`block text-xl font-bold ${selectedBudget === 2 ? 'text-white' : 'text-black'}`}>$$</span>
-                            <span className={`block text-xs mt-1 ${selectedBudget === 2 ? 'text-white' : 'text-[#666]'}`}>$10-$30</span>
+                            <span className={`block text-xs mt-1 ${selectedBudget === 2 ? 'text-white' : 'text-[#666]'}`}>Moderate</span>
                         </button>
                         <button
                             className={`flex-1 p-4 rounded-lg border border-[#e0e0e0] text-center transition-colors duration-200 ${
@@ -384,7 +558,16 @@ export default function RestaurantFilter() {
                             onClick={() => setSelectedBudget(3)}
                         >
                             <span className={`block text-xl font-bold ${selectedBudget === 3 ? 'text-white' : 'text-black'}`}>$$$</span>
-                            <span className={`block text-xs mt-1 ${selectedBudget === 3 ? 'text-white' : 'text-[#666]'}`}>$30+</span>
+                            <span className={`block text-xs mt-1 ${selectedBudget === 3 ? 'text-white' : 'text-[#666]'}`}>Expensive</span>
+                        </button>
+                        <button
+                            className={`flex-1 p-4 rounded-lg border border-[#e0e0e0] text-center transition-colors duration-200 ${
+                                selectedBudget === 4 ? 'bg-black border-[#34C759]' : 'bg-[#f0f0f0]'
+                            }`}
+                            onClick={() => setSelectedBudget(4)}
+                        >
+                            <span className={`block text-xl font-bold ${selectedBudget === 4 ? 'text-white' : 'text-black'}`}>$$$$</span>
+                            <span className={`block text-xs mt-1 ${selectedBudget === 4 ? 'text-white' : 'text-[#666]'}`}>Very Expensive</span>
                         </button>
                     </div>
                 </div>
@@ -426,33 +609,68 @@ export default function RestaurantFilter() {
                 </div>
 
                 {/* Results Count */}
-                <div className="mt-5 mb-8 p-5 bg-[#f0f0f0] rounded-lg border border-[#e0e0e0]">
-                    <p className="text-lg text-black text-center font-semibold">Number of locations found: 0</p>
+                <div className="mb-8 p-5 bg-[#f0f0f0] rounded-lg border border-[#e0e0e0]">
+                    {isSearchingRestaurants ? (
+                        <p className="text-lg text-black text-center font-semibold">Searching restaurants...</p>
+                    ) : restaurantCount > 0 ? (
+                        <p className="text-lg text-black text-center font-semibold">
+                            Number of locations found: {restaurantCount}
+                        </p>
+                    ) : (
+                        <p className="text-lg text-black text-center font-semibold">
+                            Click "Search & Go to Wheel" to find restaurants
+                        </p>
+                    )}
                 </div>
             </div>
 
             {/* Bottom Button */}
             <div className="fixed bottom-0 left-0 right-0 p-5 bg-white border-t border-[#eee]">
                 {showError && (
-                    <p className="text-[#FF3B30] text-xs text-center mb-2">Please select at least one cuisine</p>
+                    <p className="text-[#FF3B30] text-xs text-center mb-2">{errorMessage}</p>
                 )}
                 <button 
-                    className="w-full bg-black p-4 rounded-lg text-center transition-colors duration-200 hover:bg-gray-800"
-                    onClick={handleGoToWheel}
+                    className="w-full bg-black p-4 rounded-lg text-center transition-colors duration-200 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleSearchAndGoToWheel}
+                    disabled={isSearchingRestaurants}
                 >
-                    <span className="text-white text-lg font-semibold">Go to Wheel</span>
+                    <span className="text-white text-lg font-semibold">
+                        {isSearchingRestaurants ? 'Searching Restaurants...' : 'Search & Go to Wheel'}
+                    </span>
                 </button>
             </div>
 
-            {/* Custom CSS for slider */}
             <style jsx>{`
+                .slider {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    background: transparent;
+                    cursor: pointer;
+                }
+                
+                .slider::-webkit-slider-track {
+                    background: #e5e7eb;
+                    height: 8px;
+                    border-radius: 4px;
+                }
+                
                 .slider::-webkit-slider-thumb {
+                    -webkit-appearance: none;
                     appearance: none;
                     height: 20px;
                     width: 20px;
                     border-radius: 50%;
                     background: #000;
                     cursor: pointer;
+                    border: 2px solid #fff;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+                
+                .slider::-moz-range-track {
+                    background: #e5e7eb;
+                    height: 8px;
+                    border-radius: 4px;
+                    border: none;
                 }
                 
                 .slider::-moz-range-thumb {
@@ -461,7 +679,8 @@ export default function RestaurantFilter() {
                     border-radius: 50%;
                     background: #000;
                     cursor: pointer;
-                    border: none;
+                    border: 2px solid #fff;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
                 }
             `}</style>
         </div>
